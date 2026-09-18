@@ -4,9 +4,13 @@ import numpy as np
 from src.physics import energy, simulate
 
 
-def true_rollout(initial_states: np.ndarray, dt: float, n_steps: int) -> np.ndarray:
+def true_rollout(
+    initial_states: np.ndarray, dt: float, n_steps: int, c: float = 0.0
+) -> np.ndarray:
     """shape (n_traj, n_steps+1, 2)"""
-    return np.stack([simulate(s0, dt, n_steps) for s0 in initial_states], axis=0)
+    return np.stack(
+        [simulate(s0, dt, n_steps, c=c) for s0 in initial_states], axis=0
+    )
 
 
 def rmse_curve(true_traj: np.ndarray, pred_traj: np.ndarray) -> np.ndarray:

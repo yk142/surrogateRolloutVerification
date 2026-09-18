@@ -22,6 +22,7 @@ DT = 0.02
 N_STEPS_EVAL = 300  # 6秒分。学習時ホライズン(50ステップ=1秒)より大幅に長い
 N_TEST_TRAJ = 200
 SEED_TEST = 1000
+DAMPING = 0.15  # train.py と揃える(M2)
 
 MODEL_PATH = "outputs/nss_model.pt"
 OUT_DIR = "outputs"
@@ -38,7 +39,7 @@ def plot_error_curve(model: NSSModel) -> None:
     rng = np.random.default_rng(SEED_TEST)
     ics = sample_initial_states(N_TEST_TRAJ, rng)
 
-    true_traj = true_rollout(ics, DT, N_STEPS_EVAL)  # (n_traj, n_steps+1, 2)
+    true_traj = true_rollout(ics, DT, N_STEPS_EVAL, c=DAMPING)  # (n_traj, n_steps+1, 2)
     pred_traj = model.rollout(ics, N_STEPS_EVAL)  # (n_steps+1, n_traj, 2)
 
     true_traj_t_first = np.transpose(true_traj, (1, 0, 2))
@@ -63,7 +64,7 @@ def plot_energy_deviation(model: NSSModel) -> None:
     rng = np.random.default_rng(SEED_TEST)
     ics = sample_initial_states(N_TEST_TRAJ, rng)
 
-    true_traj = true_rollout(ics, DT, N_STEPS_EVAL)
+    true_traj = true_rollout(ics, DT, N_STEPS_EVAL, c=DAMPING)
     pred_traj = model.rollout(ics, N_STEPS_EVAL)
 
     true_traj_t_first = np.transpose(true_traj, (1, 0, 2))
@@ -72,12 +73,12 @@ def plot_energy_deviation(model: NSSModel) -> None:
 
     t = np.arange(N_STEPS_EVAL + 1) * DT
     plt.figure(figsize=(6, 4))
-    plt.plot(t, e_true, label="真値(理論上ほぼ一定)")
+    plt.plot(t, e_true, label="真値(減衰により単調減少するはず)")
     plt.plot(t, e_pred, label="NSSサロゲート")
     plt.axvline(50 * DT, color="gray", linestyle="--", label="学習ホライズン境界")
     plt.xlabel("time [s]")
     plt.ylabel("平均力学的エネルギー [J] (m=1kg換算)")
-    plt.title("エネルギー保存逸脱 (無減衰系での物理的整合性)")
+    plt.title(f"エネルギー逸脱 (減衰系 c={DAMPING}, 真値からのズレ)")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{OUT_DIR}/energy_deviation.png", dpi=150)
@@ -88,13 +89,13 @@ def plot_energy_deviation(model: NSSModel) -> None:
 def plot_phase_portrait(model: NSSModel) -> None:
     representative_ics = {
         "小振幅振動 (θ0=0.3, θ̇0=0)": np.array([0.3, 0.0]),
-        "セパラトリクス近傍 (θ0=0, θ̇0=6.0)": np.array([0.0, 6.0]),
-        "倒立近傍 (θ0=3.0, θ̇0=0.5)": np.array([3.0, 0.5]),
+        "完全回転域 (θ0=0, θ̇0=7.0)": np.array([0.0, 7.0]),
+        "倒立近傍 (θ0=π-0.3, θ̇0=0.3)": np.array([np.pi - 0.3, 0.3]),
     }
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     for ax, (label, ic) in zip(axes, representative_ics.items()):
-        true_traj = true_rollout(ic[None, :], DT, N_STEPS_EVAL)[0]
+        true_traj = true_rollout(ic[None, :], DT, N_STEPS_EVAL, c=DAMPING)[0]
         pred_traj = model.rollout(ic[None, :], N_STEPS_EVAL)[:, 0, :]
 
         ax.plot(true_traj[:, 0], true_traj[:, 1], label="真値", linewidth=1.5)
