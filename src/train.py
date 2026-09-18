@@ -8,17 +8,22 @@ from src.model import NSSModel, encode_state
 
 DT = 0.02
 N_STEPS_PER_TRAJ = 50
-N_TRAIN_TRAJ = 400
-N_VAL_TRAJ = 50
+N_TRAIN_TRAJ = 600
+N_VAL_TRAJ = 80
 SEED = 0
 N_EPOCHS = 200
 BATCH_SIZE = 512
 LR = 1e-3
+DAMPING = 0.15  # M2: 減衰項を追加(M1は0.0)
 
 
 def train(device: str = "cpu") -> NSSModel:
-    train_traj = generate_trajectories(N_TRAIN_TRAJ, DT, N_STEPS_PER_TRAJ, seed=SEED)
-    val_traj = generate_trajectories(N_VAL_TRAJ, DT, N_STEPS_PER_TRAJ, seed=SEED + 1)
+    train_traj = generate_trajectories(
+        N_TRAIN_TRAJ, DT, N_STEPS_PER_TRAJ, seed=SEED, c=DAMPING
+    )
+    val_traj = generate_trajectories(
+        N_VAL_TRAJ, DT, N_STEPS_PER_TRAJ, seed=SEED + 1, c=DAMPING
+    )
 
     x_train, x_next_train = make_transition_pairs(train_traj)
     x_val, x_next_val = make_transition_pairs(val_traj)
