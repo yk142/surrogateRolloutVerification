@@ -109,10 +109,14 @@ def plot_energy_deviation(model: NSSModel, conditions: dict[str, np.ndarray]) ->
 
 
 def plot_phase_portrait(model: NSSModel, conditions: dict[str, np.ndarray]) -> None:
-    ic = np.array([0.0, 0.0])  # 最下点で静止からスタート
+    # ゼロトルクは (0,0) が厳密な不動点で真値が1点に潰れて見えなくなるため、
+    # 条件ごとに意味のある初期条件を使う(ランダム/共振はトルクで直ちに動き出すので(0,0)のままでよい)。
+    default_ic = np.array([0.0, 0.0])
+    ic_overrides = {"ゼロトルク (M2回帰確認)": np.array([0.3, 0.0])}
 
     fig, axes = plt.subplots(1, len(conditions), figsize=(6 * len(conditions), 5))
     for ax, (label, tau_seq) in zip(axes, conditions.items()):
+        ic = ic_overrides.get(label, default_ic)
         true_traj = true_rollout(ic[None, :], DT, N_STEPS_EVAL, c=DAMPING, tau_seq=tau_seq)[0]
         pred_traj = model.rollout(ic[None, :], N_STEPS_EVAL, tau_seq=tau_seq)[:, 0, :]
 
@@ -126,10 +130,10 @@ def plot_phase_portrait(model: NSSModel, conditions: dict[str, np.ndarray]) -> N
         )
         ax.set_xlabel("theta [rad]")
         ax.set_ylabel("theta_dot [rad/s]")
-        ax.set_title(f"{label}\n(θ0=0, θ̇0=0から開始)", fontsize=10)
+        ax.set_title(f"{label}\n(θ0={ic[0]:.1f}, θ̇0={ic[1]:.1f}から開始)", fontsize=10)
         ax.legend(fontsize=8)
 
-    fig.suptitle("位相空間軌道の乖離(トルク条件別、最下点始動)")
+    fig.suptitle("位相空間軌道の乖離(トルク条件別)")
     plt.tight_layout()
     plt.savefig(f"{OUT_DIR}/phase_portrait.png", dpi=150)
     plt.close()
