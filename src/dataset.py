@@ -80,16 +80,6 @@ def generate_trajectories(
     return trajectories
 
 
-def make_transition_pairs(trajectories: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """軌道群から1-step遷移ペア (x_t, x_{t+1}) を作る。
-
-    trajectories: shape (n_traj, n_steps + 1, 2)
-    """
-    x = trajectories[:, :-1, :].reshape(-1, 2)
-    x_next = trajectories[:, 1:, :].reshape(-1, 2)
-    return x, x_next
-
-
 # --- M3: トルク入力を含む制御データセット ---
 
 TAU_RANGE = (-4.0, 4.0)
@@ -132,14 +122,36 @@ def generate_controlled_trajectories(
     return trajectories, tau_seqs
 
 
-def make_transition_pairs_with_control(
-    trajectories: np.ndarray, tau_seqs: np.ndarray
+# --- M7: マルチステップ(ロールアウト)損失用の学習ウィンドウ ---
+
+
+def make_rollout_windows(
+    trajectories: np.ndarray, tau_seqs: np.ndarray, k: int, stride: int = 1
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """軌道群+トルク列から1-step遷移ペア (x_t, u_t, x_{t+1}) を作る。
+    """軌道群+トルク列からKステップの学習ウィンドウ (x0, u_seq, targets) を作る。
+
+    1-step教師強制損失は、実際の自己回帰ロールアウトで生じる誤差の蓄積を
+    学習時に一切見ないというミスマッチがあった(M1-M6で繰り返し観察)。
+    この関数で切り出したウィンドウを使い、学習時にKステップ分自己回帰
+    展開してから損失を取ることでこのミスマッチを解消する。
 
     trajectories: shape (n_traj, n_steps + 1, 2), tau_seqs: shape (n_traj, n_steps)
+
+    Returns:
+        x0:      shape (n_windows, 2)       各ウィンドウの初期状態
+        u_seq:   shape (k, n_windows)       各ウィンドウのKステップ分トルク列
+        targets: shape (k, n_windows, 2)    各ウィンドウのKステップ分正解状態
     """
-    x = trajectories[:, :-1, :].reshape(-1, 2)
-    x_next = trajectories[:, 1:, :].reshape(-1, 2)
-    u = tau_seqs.reshape(-1, 1)
-    return x, u, x_next
+    n_traj, n_steps_plus_1, _ = trajectories.shape
+    n_steps = n_steps_plus_1 - 1
+
+    x0_parts, u_parts, target_parts = [], [], []
+    for start in range(0, n_steps - k + 1, stride):
+        x0_parts.append(trajectories[:, start, :])
+        u_parts.append(tau_seqs[:, start : start + k])
+        target_parts.append(trajectories[:, start + 1 : start + k + 1, :])
+
+    x0 = np.concatenate(x0_parts, axis=0)
+    u_seq = np.concatenate(u_parts, axis=0).T
+    targets = np.concatenate(target_parts, axis=0).transpose(1, 0, 2)
+    return x0, u_seq, targets

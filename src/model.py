@@ -57,7 +57,7 @@ class NSSModel(nn.Module):
         n_steps: int,
         tau_seq: np.ndarray | None = None,
     ) -> np.ndarray:
-        """numpy initial_state (..., 2) から自己回帰的にn_steps展開する。
+        """numpy initial_state (..., 2) から自己回帰的にn_steps展開する(評価用、勾配なし)。
 
         tau_seq: shape (n_steps,) または (n_steps, ...)。Noneならu=0(無入力)。
 
@@ -76,3 +76,24 @@ class NSSModel(nn.Module):
             state = self.step(state, u)
             traj.append(state)
         return torch.stack(traj, dim=0).cpu().numpy()
+
+    def rollout_diff(self, state: torch.Tensor, tau_seq: torch.Tensor, n_steps: int) -> torch.Tensor:
+        """torch state (..., 2) から勾配を保持したまま自己回帰的にn_steps展開する(学習用)。
+
+        M1-M6の1-step教師強制損失は、実際のロールアウト時に生じる誤差の蓄積を
+        学習時に一切見ないというミスマッチがあった。この関数は評価用rolloutと
+        同じ自己回帰計算を勾配ありで行い、マルチステップ・ロールアウト損失の
+        逆伝播に使う。
+
+        tau_seq: shape (n_steps, ..., 1) または (n_steps, ...)。
+
+        Returns: shape (n_steps + 1, ..., 2) (初期状態を含む)
+        """
+        traj = [state]
+        for t in range(n_steps):
+            u_t = tau_seq[t]
+            target_shape = state.shape[:-1] + (CONTROL_DIM,)
+            u = u_t.reshape(target_shape)
+            state = self.step(state, u)
+            traj.append(state)
+        return torch.stack(traj, dim=0)

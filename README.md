@@ -22,17 +22,19 @@ pip install -r requirements.txt
   局所安定化ダイナミクスの一致度を検証する。
 - **M6** (完了, #11): PIDを目標角度可変(重力フィードフォワード込み)に一般化し、
   倒立近傍でのPTP(点対点)制御を真の物理モデル/NSSサロゲートで比較検証する。
+- **M7** (完了, #15): 1-step教師強制損失をマルチステップ(ロールアウト)損失に
+  切り替え、ロールアウト誤差削減の効果を検証する。
 
 ## ディレクトリ構成
 
 ```
 src/
   physics.py         # ODE定義(減衰・トルク項) + RK4シミュレータ
-  dataset.py         # 軌道生成・IC サンプリング・分割・制御データセット生成
-  model.py           # NSS(MLP, sin/cos エンコード, トルク入力対応)
-  train.py           # 学習ループ
+  dataset.py         # 軌道生成・IC サンプリング・分割・制御/ロールアウト窓データセット生成
+  model.py           # NSS(MLP, sin/cos エンコード, トルク入力対応, 微分可能ロールアウト)
+  train.py           # 学習ループ(マルチステップ損失 + カリキュラム学習)
   rollout.py         # 自己回帰ロールアウト + 誤差/エネルギー計算
-  evaluate.py         # 指標集計・プロット生成(M1-M3)
+  evaluate.py         # 指標集計・プロット生成(M1-M3, M7のBefore/After比較にも使用)
   control.py          # ランダムシューティングMPC(スイングアップ制御)
   evaluate_control.py # MPC制御検証・プロット生成(M4)
   pid.py              # PTP対応PIDコントローラ(重力FF, 真値/サロゲート閉ループ両対応)
@@ -42,4 +44,5 @@ tests/
   test_physics.py
   test_control.py
   test_pid.py
+  test_train.py
 ```
