@@ -32,6 +32,9 @@ pip install -r requirements.txt
 - **M12** (完了, #25): 初期角速度をスイープしてM11の知見を一般化。1-stepモデルは
   トルク飽和で真値が失敗する領域でも常に成功してしまう楽観バイアスを持つ一方、
   マルチステップモデルの失敗領域は真値の失敗領域の形状とよく一致することを発見。
+- **M13** (完了, #27): 現在のサロゲート+PIDを閉ループさせて訪れた状態を真の物理
+  モデルでラベル付けするDAgger風のオンポリシーデータ収集で再学習。M12の角速度
+  スイープでの成功数が7/15→9/15に改善し、失敗パターンの形状も真値に近づいた。
 
 M1-M9の詳細な要約・横断的な教訓は [LESSONS.md](LESSONS.md) を参照。
 
@@ -52,6 +55,9 @@ src/
   evaluate_ptp.py            # PTP制御検証・プロット生成(M6)
   diagnose_linearization.py     # 倒立平衡点でのヤコビアン比較・回復挙動診断(M11)
   diagnose_amplitude_sweep.py   # 初期角速度スイープでの1-step/マルチステップ比較(M12)
+  dagger.py                     # DAgger風オンポリシーデータ収集(M13)
+  retrain_dagger.py             # DAggerデータ込みの再学習スクリプト(M13)
+  evaluate_dagger.py            # DAgger再学習のBefore/After比較・プロット生成(M13)
 tests/
   test_physics.py
   test_control.py
@@ -59,4 +65,5 @@ tests/
   test_train.py
   test_diagnose_linearization.py
   test_diagnose_amplitude_sweep.py
+  test_dagger.py
 ```
