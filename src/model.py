@@ -4,8 +4,8 @@
 theta の周期性を扱うため (sin theta, cos theta, theta_dot) にエンコードし、
 出力も同じ表現で予測してから theta = atan2(sin, cos) にデコードする。
 
-u_t (制御入力) は将来の拡張(M3: トルク入力)のためのインターフェースとして
-最初から持たせるが、M1では常に 0 を渡す。
+u_t (制御入力=トルク) はM1/M2では常に0だったが、M3からは実際のトルク値を渡して学習・
+ロールアウトに使用する。
 """
 import numpy as np
 import torch
@@ -51,15 +51,28 @@ class NSSModel(nn.Module):
         return decode_state(self.forward(state, u))
 
     @torch.no_grad()
-    def rollout(self, initial_state: np.ndarray, n_steps: int) -> np.ndarray:
+    def rollout(
+        self,
+        initial_state: np.ndarray,
+        n_steps: int,
+        tau_seq: np.ndarray | None = None,
+    ) -> np.ndarray:
         """numpy initial_state (..., 2) から自己回帰的にn_steps展開する。
+
+        tau_seq: shape (n_steps,) または (n_steps, ...)。Noneならu=0(無入力)。
 
         Returns: shape (n_steps + 1, ..., 2)
         """
         device = next(self.parameters()).device
         state = torch.as_tensor(initial_state, dtype=torch.float32, device=device)
         traj = [state]
-        for _ in range(n_steps):
-            state = self.step(state)
+        for t in range(n_steps):
+            if tau_seq is None:
+                u = None
+            else:
+                u_t = torch.as_tensor(tau_seq[t], dtype=torch.float32, device=device)
+                target_shape = state.shape[:-1] + (CONTROL_DIM,)
+                u = u_t.expand(target_shape) if u_t.numel() == 1 else u_t.reshape(target_shape)
+            state = self.step(state, u)
             traj.append(state)
         return torch.stack(traj, dim=0).cpu().numpy()

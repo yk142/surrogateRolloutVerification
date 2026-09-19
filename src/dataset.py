@@ -88,3 +88,58 @@ def make_transition_pairs(trajectories: np.ndarray) -> tuple[np.ndarray, np.ndar
     x = trajectories[:, :-1, :].reshape(-1, 2)
     x_next = trajectories[:, 1:, :].reshape(-1, 2)
     return x, x_next
+
+
+# --- M3: トルク入力を含む制御データセット ---
+
+TAU_RANGE = (-4.0, 4.0)
+TORQUE_HOLD_STEPS = 5  # このステップ数ごとにトルクを変更する(区分定数=ゼロ次ホールド)
+
+
+def sample_torque_sequence(
+    n_steps: int,
+    rng: np.random.Generator,
+    tau_range: tuple[float, float] = TAU_RANGE,
+    hold_steps: int = TORQUE_HOLD_STEPS,
+) -> np.ndarray:
+    """ランダムな区分定数トルク列を生成する。shape (n_steps,)"""
+    n_holds = int(np.ceil(n_steps / hold_steps))
+    hold_values = rng.uniform(*tau_range, size=n_holds)
+    return np.repeat(hold_values, hold_steps)[:n_steps]
+
+
+def generate_controlled_trajectories(
+    n_trajectories: int, dt: float, n_steps: int, seed: int, c: float = 0.0
+) -> tuple[np.ndarray, np.ndarray]:
+    """ランダムトルク列で駆動した軌道データセットを生成する。
+
+    Returns:
+        trajectories: shape (n_traj, n_steps + 1, 2)
+        tau_seqs:     shape (n_traj, n_steps)
+    """
+    rng = np.random.default_rng(seed)
+    initial_states = sample_initial_states(n_trajectories, rng)
+    tau_seqs = np.stack(
+        [sample_torque_sequence(n_steps, rng) for _ in range(n_trajectories)], axis=0
+    )
+    trajectories = np.stack(
+        [
+            simulate(s0, dt, n_steps, c=c, tau=tau_seq)
+            for s0, tau_seq in zip(initial_states, tau_seqs)
+        ],
+        axis=0,
+    )
+    return trajectories, tau_seqs
+
+
+def make_transition_pairs_with_control(
+    trajectories: np.ndarray, tau_seqs: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """軌道群+トルク列から1-step遷移ペア (x_t, u_t, x_{t+1}) を作る。
+
+    trajectories: shape (n_traj, n_steps + 1, 2), tau_seqs: shape (n_traj, n_steps)
+    """
+    x = trajectories[:, :-1, :].reshape(-1, 2)
+    x_next = trajectories[:, 1:, :].reshape(-1, 2)
+    u = tau_seqs.reshape(-1, 1)
+    return x, u, x_next
