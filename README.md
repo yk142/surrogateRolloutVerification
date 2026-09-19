@@ -20,6 +20,8 @@ pip install -r requirements.txt
 - **M4** (完了, #7): 学習済み NSS を用いたスイングアップ/PTP制御(ランダムシューティングMPC)の検証。
 - **M5** (完了, #9): 同一PIDゲインを真の物理モデル/NSSサロゲートに適用し、倒立近傍の
   局所安定化ダイナミクスの一致度を検証する。
+- **M6** (完了, #11): PIDを目標角度可変(重力フィードフォワード込み)に一般化し、
+  倒立近傍でのPTP(点対点)制御を真の物理モデル/NSSサロゲートで比較検証する。
 
 ## ディレクトリ構成
 
@@ -33,8 +35,9 @@ src/
   evaluate.py         # 指標集計・プロット生成(M1-M3)
   control.py          # ランダムシューティングMPC(スイングアップ制御)
   evaluate_control.py # MPC制御検証・プロット生成(M4)
-  pid.py              # 倒立目標PIDコントローラ(真値/サロゲート閉ループ両対応)
-  evaluate_pid.py      # PID安定化検証・プロット生成(M5)
+  pid.py              # PTP対応PIDコントローラ(重力FF, 真値/サロゲート閉ループ両対応)
+  evaluate_pid.py      # 倒立固定目標PID安定化検証・プロット生成(M5)
+  evaluate_ptp.py      # PTP制御検証・プロット生成(M6)
 tests/
   test_physics.py
   test_control.py
