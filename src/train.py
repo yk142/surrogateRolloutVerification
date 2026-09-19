@@ -35,7 +35,15 @@ WINDOW_STRIDE = 2
 CURRICULUM = [(1, 40), (3, 30), (5, 30), (10, 30), (20, 30), (K_MAX, 40)]
 
 
-def train(device: str = "cpu") -> NSSModel:
+def train(device: str = "cpu", curriculum: list[tuple[int, int]] | None = None) -> NSSModel:
+    """curriculum省略時はM7のデフォルト(K=1→30の段階的カリキュラム)を使う。
+
+    診断・比較用に curriculum=[(1, 200)] のように渡せば、1-stepのみで学習した
+    M3相当のベースラインモデルも同じ関数で再現できる(#23)。
+    """
+    curriculum = curriculum if curriculum is not None else CURRICULUM
+    k_max = max(k for k, _ in curriculum)
+
     train_traj, train_tau = generate_controlled_trajectories(
         N_TRAIN_TRAJ, DT, N_STEPS_PER_TRAJ, seed=SEED, c=DAMPING
     )
@@ -44,10 +52,10 @@ def train(device: str = "cpu") -> NSSModel:
     )
 
     x0_train, u_train, targets_train = make_rollout_windows(
-        train_traj, train_tau, K_MAX, stride=WINDOW_STRIDE
+        train_traj, train_tau, k_max, stride=WINDOW_STRIDE
     )
     x0_val, u_val, targets_val = make_rollout_windows(
-        val_traj, val_tau, K_MAX, stride=WINDOW_STRIDE
+        val_traj, val_tau, k_max, stride=WINDOW_STRIDE
     )
 
     x0_train_t = torch.as_tensor(x0_train, dtype=torch.float32, device=device)
@@ -69,7 +77,7 @@ def train(device: str = "cpu") -> NSSModel:
     n_samples = x0_train_t.shape[0]
     global_epoch = 0
 
-    for k, n_epochs in CURRICULUM:
+    for k, n_epochs in curriculum:
         for local_epoch in range(n_epochs):
             perm = torch.randperm(n_samples)
             epoch_loss = 0.0
