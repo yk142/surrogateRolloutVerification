@@ -29,6 +29,9 @@ pip install -r requirements.txt
 - **M11** (完了, #23): M7が制御タスクで悪化した根本原因を、倒立平衡点での局所線形化
   (ヤコビアン)比較で調査。平衡点そのものでの線形化は真値とほぼ一致しており、実際の
   乖離は平衡点から大きく外れた状態からの回復挙動に現れることを特定。
+- **M12** (完了, #25): 初期角速度をスイープしてM11の知見を一般化。1-stepモデルは
+  トルク飽和で真値が失敗する領域でも常に成功してしまう楽観バイアスを持つ一方、
+  マルチステップモデルの失敗領域は真値の失敗領域の形状とよく一致することを発見。
 
 M1-M9の詳細な要約・横断的な教訓は [LESSONS.md](LESSONS.md) を参照。
 
@@ -47,11 +50,13 @@ src/
   pid.py                    # PTP対応PIDコントローラ(重力FF, 真値/サロゲート閉ループ両対応)
   evaluate_pid.py            # 倒立固定目標PID安定化検証・プロット生成(M5)
   evaluate_ptp.py            # PTP制御検証・プロット生成(M6)
-  diagnose_linearization.py  # 倒立平衡点でのヤコビアン比較・回復挙動診断(M11)
+  diagnose_linearization.py     # 倒立平衡点でのヤコビアン比較・回復挙動診断(M11)
+  diagnose_amplitude_sweep.py   # 初期角速度スイープでの1-step/マルチステップ比較(M12)
 tests/
   test_physics.py
   test_control.py
   test_pid.py
   test_train.py
   test_diagnose_linearization.py
+  test_diagnose_amplitude_sweep.py
 ```
