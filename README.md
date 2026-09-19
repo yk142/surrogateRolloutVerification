@@ -18,6 +18,8 @@ pip install -r requirements.txt
 - **M2** (完了, #3): 減衰項を追加し、初期条件分布を倒立域・完全回転域まで拡張する。
 - **M3** (完了, #5): トルク入力 `τ` を状態遷移に組み込み、制御データで学習する。
 - **M4** (完了, #7): 学習済み NSS を用いたスイングアップ/PTP制御(ランダムシューティングMPC)の検証。
+- **M5** (完了, #9): 同一PIDゲインを真の物理モデル/NSSサロゲートに適用し、倒立近傍の
+  局所安定化ダイナミクスの一致度を検証する。
 
 ## ディレクトリ構成
 
@@ -31,7 +33,10 @@ src/
   evaluate.py         # 指標集計・プロット生成(M1-M3)
   control.py          # ランダムシューティングMPC(スイングアップ制御)
   evaluate_control.py # MPC制御検証・プロット生成(M4)
+  pid.py              # 倒立目標PIDコントローラ(真値/サロゲート閉ループ両対応)
+  evaluate_pid.py      # PID安定化検証・プロット生成(M5)
 tests/
   test_physics.py
   test_control.py
+  test_pid.py
 ```
