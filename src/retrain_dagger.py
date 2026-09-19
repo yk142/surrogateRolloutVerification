@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(SEED)
     np.random.seed(SEED)
-    new_model = train(curriculum=CURRICULUM, extra_windows=extra_windows)
+    new_model = train(curriculum=CURRICULUM, extra_windows=extra_windows, model_cls=NSSModel)
 
     torch.save(new_model.state_dict(), MODEL_PATH)
     print(f"saved to {MODEL_PATH}")

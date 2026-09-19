@@ -107,13 +107,13 @@ if __name__ == "__main__":
 
     torch.manual_seed(SEED)
     np.random.seed(SEED)
-    baseline_model = train(curriculum=BASELINE_CURRICULUM)
+    baseline_model = train(curriculum=BASELINE_CURRICULUM, model_cls=NSSModel)
     A_baseline, B_baseline = model_jacobian(baseline_model)
     report("1-stepのみ(M3相当ベースライン)", A_baseline, B_baseline, A_true)
 
     torch.manual_seed(SEED)
     np.random.seed(SEED)
-    multistep_model = train(curriculum=CURRICULUM)
+    multistep_model = train(curriculum=CURRICULUM, model_cls=NSSModel)
     A_multistep, B_multistep = model_jacobian(multistep_model)
     report("マルチステップ損失(M7)", A_multistep, B_multistep, A_true)
 

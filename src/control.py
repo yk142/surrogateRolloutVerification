@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from src.model import NSSModel
+from src.model import AutoregressiveModel
 from src.physics import G, L, rk4_step, simulate
 
 DT = 0.02
@@ -36,7 +36,7 @@ def make_true_rollout_fn(c: float, m: float = 1.0) -> RolloutFn:
     return fn
 
 
-def make_nss_rollout_fn(model: NSSModel) -> RolloutFn:
+def make_nss_rollout_fn(model: AutoregressiveModel) -> RolloutFn:
     """NSSサロゲートで予測するロールアウト関数。"""
 
     def fn(state_batch: np.ndarray, tau_seq: np.ndarray) -> np.ndarray:

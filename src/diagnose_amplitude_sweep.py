@@ -76,11 +76,11 @@ def plot_sweep(results: dict[str, np.ndarray]) -> None:
 if __name__ == "__main__":
     torch.manual_seed(SEED)
     np.random.seed(SEED)
-    baseline_model = train(curriculum=BASELINE_CURRICULUM)
+    baseline_model = train(curriculum=BASELINE_CURRICULUM, model_cls=NSSModel)
 
     torch.manual_seed(SEED)
     np.random.seed(SEED)
-    multistep_model = train(curriculum=CURRICULUM)
+    multistep_model = train(curriculum=CURRICULUM, model_cls=NSSModel)
 
     results = run_sweep(baseline_model, multistep_model)
     plot_sweep(results)

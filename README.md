@@ -35,6 +35,11 @@ pip install -r requirements.txt
 - **M13** (完了, #27): 現在のサロゲート+PIDを閉ループさせて訪れた状態を真の物理
   モデルでラベル付けするDAgger風のオンポリシーデータ収集で再学習。M12の角速度
   スイープでの成功数が7/15→9/15に改善し、失敗パターンの形状も真値に近づいた。
+- **M14** (完了, #29): 既知の物理構造(重力項・トルク入力項・RK4積分)をハードコードし、
+  NNは残差加速度のみを学習するグレーボックス化。**開ループRMSEが約20分の1、
+  MPC安定化誤差が0.269→0.0091(オラクルの0.0065とほぼ同等)に改善**し、M1-M13で
+  繰り返し現れた失敗モード(エネルギー注入・楽観バイアス・非対称な失敗方向)が
+  ほぼ解消。以降のデフォルトモデルは `GrayBoxNSSModel`。
 
 M1-M9の詳細な要約・横断的な教訓は [LESSONS.md](LESSONS.md) を参照。
 
@@ -44,8 +49,8 @@ M1-M9の詳細な要約・横断的な教訓は [LESSONS.md](LESSONS.md) を参�
 src/
   physics.py               # ODE定義(減衰・トルク項) + RK4シミュレータ
   dataset.py               # 軌道生成・IC サンプリング・分割・制御/ロールアウト窓データセット生成
-  model.py                 # NSS(MLP, sin/cos エンコード, トルク入力対応, 微分可能ロールアウト)
-  train.py                 # 学習ループ(マルチステップ損失 + カリキュラム学習、curriculum引数で切替可)
+  model.py                 # NSSModel(ブラックボックス) / GrayBoxNSSModel(既知物理+残差、デフォルト)
+  train.py                 # 学習ループ(マルチステップ損失 + カリキュラム学習、curriculum/model_cls引数で切替可)
   rollout.py               # 自己回帰ロールアウト + 誤差/エネルギー計算
   evaluate.py               # 指標集計・プロット生成(M1-M3, M7のBefore/After比較にも使用)
   control.py                # ランダムシューティングMPC(スイングアップ制御)
@@ -58,6 +63,7 @@ src/
   dagger.py                     # DAgger風オンポリシーデータ収集(M13)
   retrain_dagger.py             # DAggerデータ込みの再学習スクリプト(M13)
   evaluate_dagger.py            # DAgger再学習のBefore/After比較・プロット生成(M13)
+  evaluate_graybox.py           # ブラックボックス vs グレーボックスの比較(M14)
 tests/
   test_physics.py
   test_control.py
@@ -66,4 +72,5 @@ tests/
   test_diagnose_linearization.py
   test_diagnose_amplitude_sweep.py
   test_dagger.py
+  test_model_graybox.py
 ```

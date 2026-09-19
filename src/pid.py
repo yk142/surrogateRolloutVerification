@@ -9,7 +9,7 @@ M6ではPIDの目標角度を一般化し、倒立近傍の異なる目標角度
 """
 import numpy as np
 
-from src.model import NSSModel
+from src.model import AutoregressiveModel
 from src.physics import G, L, M, rk4_step
 
 DT = 0.02
@@ -118,7 +118,7 @@ def run_pid_true(
 
 
 def run_pid_surrogate(
-    model: NSSModel,
+    model: AutoregressiveModel,
     initial_state: np.ndarray,
     n_steps: int,
     target: float | np.ndarray = np.pi,

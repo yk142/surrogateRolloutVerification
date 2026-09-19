@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from src.dataset import generate_controlled_trajectories, make_rollout_windows
-from src.model import NSSModel, encode_state
+from src.model import AutoregressiveModel, GrayBoxNSSModel, encode_state
 
 DT = 0.02
 N_STEPS_PER_TRAJ = 50
@@ -39,7 +39,8 @@ def train(
     device: str = "cpu",
     curriculum: list[tuple[int, int]] | None = None,
     extra_windows: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
-) -> NSSModel:
+    model_cls: type[AutoregressiveModel] = GrayBoxNSSModel,
+) -> AutoregressiveModel:
     """curriculum省略時はM7のデフォルト(K=1→30の段階的カリキュラム)を使う。
 
     診断・比較用に curriculum=[(1, 200)] のように渡せば、1-stepのみで学習した
@@ -85,7 +86,7 @@ def train(
         torch.as_tensor(targets_val, dtype=torch.float32, device=device)
     )
 
-    model = NSSModel().to(device)
+    model = model_cls().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = nn.MSELoss()
 

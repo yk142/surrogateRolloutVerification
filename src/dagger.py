@@ -9,7 +9,7 @@ M8/M9/M11/M12で、サロゲートの誤差は「訓練時のランダム軌道�
 """
 import numpy as np
 
-from src.model import NSSModel
+from src.model import AutoregressiveModel
 from src.physics import simulate
 from src.pid import run_pid_surrogate
 
@@ -17,7 +17,7 @@ DT = 0.02
 
 
 def collect_dagger_windows(
-    model: NSSModel,
+    model: AutoregressiveModel,
     ics: np.ndarray,
     n_steps: int,
     k: int,
