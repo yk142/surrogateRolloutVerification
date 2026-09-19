@@ -35,11 +35,20 @@ WINDOW_STRIDE = 2
 CURRICULUM = [(1, 40), (3, 30), (5, 30), (10, 30), (20, 30), (K_MAX, 40)]
 
 
-def train(device: str = "cpu", curriculum: list[tuple[int, int]] | None = None) -> NSSModel:
+def train(
+    device: str = "cpu",
+    curriculum: list[tuple[int, int]] | None = None,
+    extra_windows: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
+) -> NSSModel:
     """curriculum省略時はM7のデフォルト(K=1→30の段階的カリキュラム)を使う。
 
     診断・比較用に curriculum=[(1, 200)] のように渡せば、1-stepのみで学習した
     M3相当のベースラインモデルも同じ関数で再現できる(#23)。
+
+    extra_windows: (x0, u_seq, targets) を渡すと、標準のランダム軌道ウィンドウに
+    追加して学習に使う(#27: DAgger風のオンポリシーデータ収集による拡張)。
+    形状はmake_rollout_windowsの出力と同じ(x0: (n,2), u_seq: (k_max,n),
+    targets: (k_max,n,2))で、k_maxは呼び出し側でcurriculumの最大kと揃えること。
     """
     curriculum = curriculum if curriculum is not None else CURRICULUM
     k_max = max(k for k, _ in curriculum)
@@ -57,6 +66,12 @@ def train(device: str = "cpu", curriculum: list[tuple[int, int]] | None = None) 
     x0_val, u_val, targets_val = make_rollout_windows(
         val_traj, val_tau, k_max, stride=WINDOW_STRIDE
     )
+
+    if extra_windows is not None:
+        extra_x0, extra_u, extra_targets = extra_windows
+        x0_train = np.concatenate([x0_train, extra_x0], axis=0)
+        u_train = np.concatenate([u_train, extra_u], axis=1)
+        targets_train = np.concatenate([targets_train, extra_targets], axis=1)
 
     x0_train_t = torch.as_tensor(x0_train, dtype=torch.float32, device=device)
     u_train_t = torch.as_tensor(u_train, dtype=torch.float32, device=device)
