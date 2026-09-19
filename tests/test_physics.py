@@ -36,3 +36,22 @@ def test_energy_monotonically_decreases_when_damped():
     e = energy(traj)
     assert np.all(np.diff(e) <= 1e-9)
     assert e[-1] < e[0]
+
+
+def test_constant_torque_matches_work_energy_theorem():
+    """無減衰系で一定トルクtauを与えたとき、エネルギー変化量が仕事 tau*Δtheta と一致すること。
+
+    (m=L=1のとき dE/dt = tau*theta_dot なので、tauが一定なら ΔE = tau*Δtheta)
+    """
+    initial_state = np.array([0.3, 0.0])
+    dt = 0.005
+    n_steps = 400
+    tau = 1.5
+    traj = simulate(initial_state, dt, n_steps, c=0.0, tau=tau)
+
+    e = energy(traj)
+    delta_e = e[-1] - e[0]
+    delta_theta = traj[-1, 0] - traj[0, 0]
+    expected_delta_e = tau * delta_theta
+
+    assert np.isclose(delta_e, expected_delta_e, rtol=1e-2)

@@ -5,11 +5,18 @@ from src.physics import energy, simulate
 
 
 def true_rollout(
-    initial_states: np.ndarray, dt: float, n_steps: int, c: float = 0.0
+    initial_states: np.ndarray,
+    dt: float,
+    n_steps: int,
+    c: float = 0.0,
+    tau_seq: np.ndarray | float = 0.0,
 ) -> np.ndarray:
-    """shape (n_traj, n_steps+1, 2)"""
+    """shape (n_traj, n_steps+1, 2)
+
+    tau_seq: スカラー、または shape (n_steps,) の全軌道共通トルク列。
+    """
     return np.stack(
-        [simulate(s0, dt, n_steps, c=c) for s0 in initial_states], axis=0
+        [simulate(s0, dt, n_steps, c=c, tau=tau_seq) for s0 in initial_states], axis=0
     )
 
 
