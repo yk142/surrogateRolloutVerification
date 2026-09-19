@@ -42,7 +42,19 @@ def stabilization_error(traj: np.ndarray) -> float:
     return float(np.abs(angular_error_to_inverted(traj[-WINDOW:, 0])).mean())
 
 
+def unwrap_theta(traj: np.ndarray) -> np.ndarray:
+    """NSSモデルはステップごとにatan2でthetaをデコードするため、軌道が±πを
+    跨ぐと見た目上2πジャンプする(物理的には連続な同一角度)。プロット用に
+    np.unwrapで連続な表現に直す(角速度など他の量はwrapの影響を受けないため
+    theta列だけ置き換える)。
+    """
+    unwrapped = traj.copy()
+    unwrapped[:, 0] = np.unwrap(traj[:, 0])
+    return unwrapped
+
+
 def plot_trajectory(true_traj: np.ndarray, surrogate_traj: np.ndarray) -> None:
+    surrogate_traj = unwrap_theta(surrogate_traj)
     t = np.arange(N_STEPS + 1) * DT
     plt.figure(figsize=(7, 4.5))
     plt.plot(t, true_traj[:, 0], label="真の物理モデル + PID")
@@ -60,6 +72,7 @@ def plot_trajectory(true_traj: np.ndarray, surrogate_traj: np.ndarray) -> None:
 
 
 def plot_phase_portrait(true_traj: np.ndarray, surrogate_traj: np.ndarray) -> None:
+    surrogate_traj = unwrap_theta(surrogate_traj)
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     for ax, (label, traj) in zip(
         axes, [("真の物理モデル + PID", true_traj), ("NSSサロゲート + PID", surrogate_traj)]
