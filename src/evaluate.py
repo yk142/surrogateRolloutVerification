@@ -6,6 +6,7 @@
 1. rollout_error_curve.png : 条件ごとのhorizonに対するRMSE蓄積カーブ
 2. energy_deviation.png    : 条件ごとのエネルギー逸脱(真値 vs サロゲート)
 3. phase_portrait.png      : 条件ごとの代表IC位相空間軌道比較(スイングアップの再現度を含む)
+4. theta_trajectory.png    : 条件ごとの代表IC角度θ(t)の時系列比較
 """
 import matplotlib
 
@@ -20,9 +21,10 @@ from src.dataset import sample_initial_states, sample_torque_sequence
 from src.model import NSSModel
 from src.physics import G, L, energy
 from src.rollout import rmse_curve, true_rollout
+from src.train import K_MAX as TRAIN_ROLLOUT_STEPS
 
 DT = 0.02
-N_STEPS_EVAL = 300  # 6秒分。学習時ホライズン(50ステップ=1秒)より大幅に長い
+N_STEPS_EVAL = 300  # 6秒分。学習時ロールアウトホライズン(M7時点でK_MAX=30ステップ=0.6秒)より大幅に長い
 N_TEST_TRAJ = 200
 SEED_TEST = 1000
 DAMPING = 0.15  # train.py と揃える(M2)
@@ -67,7 +69,7 @@ def plot_error_curve(model: NSSModel, conditions: dict[str, np.ndarray]) -> dict
         curves[label] = curve
         plt.plot(t, curve, label=label)
 
-    plt.axvline(50 * DT, color="gray", linestyle="--", label="学習ホライズン境界")
+    plt.axvline(TRAIN_ROLLOUT_STEPS * DT, color="gray", linestyle="--", label="学習ホライズン境界")
     plt.xlabel("time [s]")
     plt.ylabel("RMSE (theta[rad], theta_dot[rad/s] 合成)")
     plt.title(f"ロールアウト誤差蓄積カーブ (n={N_TEST_TRAJ} test trajectories)")
@@ -95,7 +97,7 @@ def plot_energy_deviation(model: NSSModel, conditions: dict[str, np.ndarray]) ->
 
         ax.plot(t, e_true, label="真値")
         ax.plot(t, e_pred, label="NSSサロゲート")
-        ax.axvline(50 * DT, color="gray", linestyle="--", label="学習ホライズン境界")
+        ax.axvline(TRAIN_ROLLOUT_STEPS * DT, color="gray", linestyle="--", label="学習ホライズン境界")
         ax.set_xlabel("time [s]")
         ax.set_ylabel("平均力学的エネルギー [J]")
         ax.set_title(label, fontsize=10)
@@ -106,6 +108,35 @@ def plot_energy_deviation(model: NSSModel, conditions: dict[str, np.ndarray]) ->
     plt.savefig(f"{OUT_DIR}/energy_deviation.png", dpi=150)
     plt.close()
     print(f"saved {OUT_DIR}/energy_deviation.png")
+
+
+def plot_theta_trajectory(model: NSSModel, conditions: dict[str, np.ndarray]) -> None:
+    # phase_portraitと同じ代表IC(ゼロトルクのみ非自明なICを使う理由も同じ)。
+    default_ic = np.array([0.0, 0.0])
+    ic_overrides = {"ゼロトルク (M2回帰確認)": np.array([0.3, 0.0])}
+    t = np.arange(N_STEPS_EVAL + 1) * DT
+
+    fig, axes = plt.subplots(1, len(conditions), figsize=(6 * len(conditions), 4.5))
+    for ax, (label, tau_seq) in zip(axes, conditions.items()):
+        ic = ic_overrides.get(label, default_ic)
+        true_traj = true_rollout(ic[None, :], DT, N_STEPS_EVAL, c=DAMPING, tau_seq=tau_seq)[0]
+        pred_traj = model.rollout(ic[None, :], N_STEPS_EVAL, tau_seq=tau_seq)[:, 0, :]
+        pred_traj_unwrapped = pred_traj.copy()
+        pred_traj_unwrapped[:, 0] = np.unwrap(pred_traj[:, 0])
+
+        ax.plot(t, true_traj[:, 0], label="真値", linewidth=1.5)
+        ax.plot(t, pred_traj_unwrapped[:, 0], label="NSSサロゲート", linewidth=1.2, linestyle="--")
+        ax.axvline(TRAIN_ROLLOUT_STEPS * DT, color="gray", linestyle="--", linewidth=1, label="学習ホライズン境界")
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("theta [rad]")
+        ax.set_title(f"{label}\n(θ0={ic[0]:.1f}, θ̇0={ic[1]:.1f}から開始)", fontsize=10)
+        ax.legend(fontsize=8)
+
+    fig.suptitle("角度θ(t)の時系列比較(トルク条件別)")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/theta_trajectory.png", dpi=150)
+    plt.close()
+    print(f"saved {OUT_DIR}/theta_trajectory.png")
 
 
 def plot_phase_portrait(model: NSSModel, conditions: dict[str, np.ndarray]) -> None:
@@ -146,5 +177,6 @@ if __name__ == "__main__":
     curves = plot_error_curve(m, conds)
     plot_energy_deviation(m, conds)
     plot_phase_portrait(m, conds)
+    plot_theta_trajectory(m, conds)
     for label, curve in curves.items():
         print(f"[{label}] final RMSE at t={N_STEPS_EVAL*DT:.1f}s: {curve[-1]:.4f}")
