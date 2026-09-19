@@ -17,18 +17,21 @@ pip install -r requirements.txt
   ロールアウト誤差蓄積カーブ・エネルギー保存逸脱・位相空間軌道乖離を評価する。
 - **M2** (完了, #3): 減衰項を追加し、初期条件分布を倒立域・完全回転域まで拡張する。
 - **M3** (完了, #5): トルク入力 `τ` を状態遷移に組み込み、制御データで学習する。
-- **M4**: 学習済み NSS を用いた PTP / スイングアップ制御器の検証。
+- **M4** (完了, #7): 学習済み NSS を用いたスイングアップ/PTP制御(ランダムシューティングMPC)の検証。
 
 ## ディレクトリ構成
 
 ```
 src/
-  physics.py    # ODE定義 + RK4シミュレータ
-  dataset.py    # 軌道生成・IC サンプリング・分割
-  model.py      # NSS(MLP, sin/cos エンコード)
-  train.py      # 学習ループ
-  rollout.py    # 自己回帰ロールアウト + 誤差/エネルギー計算
-  evaluate.py   # 指標集計・プロット生成
+  physics.py         # ODE定義(減衰・トルク項) + RK4シミュレータ
+  dataset.py         # 軌道生成・IC サンプリング・分割・制御データセット生成
+  model.py           # NSS(MLP, sin/cos エンコード, トルク入力対応)
+  train.py           # 学習ループ
+  rollout.py         # 自己回帰ロールアウト + 誤差/エネルギー計算
+  evaluate.py         # 指標集計・プロット生成(M1-M3)
+  control.py          # ランダムシューティングMPC(スイングアップ制御)
+  evaluate_control.py # MPC制御検証・プロット生成(M4)
 tests/
   test_physics.py
+  test_control.py
 ```
