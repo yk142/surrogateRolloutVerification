@@ -18,7 +18,7 @@ import torch
 plt.rcParams["font.family"] = "Noto Sans CJK JP"
 
 from src.dataset import sample_initial_states, sample_torque_sequence
-from src.model import NSSModel
+from src.model import AutoregressiveModel, GrayBoxNSSModel
 from src.physics import G, L, energy
 from src.rollout import rmse_curve, true_rollout
 from src.train import K_MAX as TRAIN_ROLLOUT_STEPS
@@ -47,14 +47,14 @@ def make_control_conditions() -> dict[str, np.ndarray]:
     }
 
 
-def load_model() -> NSSModel:
-    model = NSSModel()
+def load_model() -> AutoregressiveModel:
+    model = GrayBoxNSSModel()
     model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     model.eval()
     return model
 
 
-def plot_error_curve(model: NSSModel, conditions: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+def plot_error_curve(model: AutoregressiveModel, conditions: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     rng = np.random.default_rng(SEED_TEST)
     ics = sample_initial_states(N_TEST_TRAJ, rng)
     t = np.arange(N_STEPS_EVAL + 1) * DT
@@ -81,7 +81,7 @@ def plot_error_curve(model: NSSModel, conditions: dict[str, np.ndarray]) -> dict
     return curves
 
 
-def plot_energy_deviation(model: NSSModel, conditions: dict[str, np.ndarray]) -> None:
+def plot_energy_deviation(model: AutoregressiveModel, conditions: dict[str, np.ndarray]) -> None:
     rng = np.random.default_rng(SEED_TEST)
     ics = sample_initial_states(N_TEST_TRAJ, rng)
     t = np.arange(N_STEPS_EVAL + 1) * DT
@@ -110,7 +110,7 @@ def plot_energy_deviation(model: NSSModel, conditions: dict[str, np.ndarray]) ->
     print(f"saved {OUT_DIR}/energy_deviation.png")
 
 
-def plot_theta_trajectory(model: NSSModel, conditions: dict[str, np.ndarray]) -> None:
+def plot_theta_trajectory(model: AutoregressiveModel, conditions: dict[str, np.ndarray]) -> None:
     # phase_portraitと同じ代表IC(ゼロトルクのみ非自明なICを使う理由も同じ)。
     default_ic = np.array([0.0, 0.0])
     ic_overrides = {"ゼロトルク (M2回帰確認)": np.array([0.3, 0.0])}
@@ -139,7 +139,7 @@ def plot_theta_trajectory(model: NSSModel, conditions: dict[str, np.ndarray]) ->
     print(f"saved {OUT_DIR}/theta_trajectory.png")
 
 
-def plot_phase_portrait(model: NSSModel, conditions: dict[str, np.ndarray]) -> None:
+def plot_phase_portrait(model: AutoregressiveModel, conditions: dict[str, np.ndarray]) -> None:
     # ゼロトルクは (0,0) が厳密な不動点で真値が1点に潰れて見えなくなるため、
     # 条件ごとに意味のある初期条件を使う(ランダム/共振はトルクで直ちに動き出すので(0,0)のままでよい)。
     default_ic = np.array([0.0, 0.0])

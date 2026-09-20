@@ -14,7 +14,7 @@ import torch
 
 plt.rcParams["font.family"] = "Noto Sans CJK JP"
 
-from src.model import NSSModel
+from src.model import AutoregressiveModel, GrayBoxNSSModel
 from src.pid import angular_error_to_inverted, run_pid_surrogate, run_pid_true
 
 DT = 0.02
@@ -31,8 +31,8 @@ MODEL_PATH = "outputs/nss_model.pt"
 OUT_DIR = "outputs"
 
 
-def load_model() -> NSSModel:
-    model = NSSModel()
+def load_model() -> AutoregressiveModel:
+    model = GrayBoxNSSModel()
     model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     model.eval()
     return model
@@ -94,7 +94,7 @@ def plot_phase_portrait(true_traj: np.ndarray, surrogate_traj: np.ndarray) -> No
     print(f"saved {OUT_DIR}/pid_phase_portrait.png")
 
 
-def plot_error_scatter(model: NSSModel) -> None:
+def plot_error_scatter(model: AutoregressiveModel) -> None:
     true_errors = []
     surrogate_errors = []
     labels = []

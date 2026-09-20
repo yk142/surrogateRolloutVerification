@@ -16,7 +16,7 @@ import torch
 plt.rcParams["font.family"] = "Noto Sans CJK JP"
 
 from src.control import make_nss_rollout_fn, make_true_rollout_fn, run_mpc
-from src.model import NSSModel
+from src.model import AutoregressiveModel, GrayBoxNSSModel
 from src.physics import G, L, simulate
 
 DT = 0.02
@@ -33,8 +33,8 @@ MODEL_PATH = "outputs/nss_model.pt"
 OUT_DIR = "outputs"
 
 
-def load_model() -> NSSModel:
-    model = NSSModel()
+def load_model() -> AutoregressiveModel:
+    model = GrayBoxNSSModel()
     model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     model.eval()
     return model
@@ -52,7 +52,7 @@ def angular_distance_to_inverted(theta: np.ndarray) -> np.ndarray:
     return np.abs(np.arctan2(np.sin(theta - np.pi), np.cos(theta - np.pi)))
 
 
-def run_all_conditions(model: NSSModel, seed: int):
+def run_all_conditions(model: AutoregressiveModel, seed: int):
     nss_rollout_fn = make_nss_rollout_fn(model)
     true_rollout_fn = make_true_rollout_fn(c=DAMPING)
 
@@ -104,7 +104,7 @@ def plot_phase_portrait(trajs: dict[str, np.ndarray]) -> None:
     print(f"saved {OUT_DIR}/swingup_phase_portrait.png")
 
 
-def plot_stabilization_error(model: NSSModel) -> None:
+def plot_stabilization_error(model: AutoregressiveModel) -> None:
     nss_rollout_fn = make_nss_rollout_fn(model)
     true_rollout_fn = make_true_rollout_fn(c=DAMPING)
 
