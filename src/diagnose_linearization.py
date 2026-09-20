@@ -35,11 +35,16 @@ REGRESSION_WINDOW = 50
 
 
 def true_jacobian() -> tuple[np.ndarray, np.ndarray]:
-    """真の物理モデル(rk4_step)を有限差分で線形化する。"""
+    """真の物理モデル(rk4_step)を有限差分で線形化する。
+
+    M15 (#31) で追加したクーロン摩擦は theta_dot=0 で微分不可能であり、倒立平衡点
+    (theta_dot=0)での有限差分が発散する。M11のこの診断は「滑らかな系の局所線形化」を
+    比較するものなので、クーロン摩擦は除外して評価する。
+    """
     eps = 1e-6
 
     def f(state: np.ndarray, tau: float) -> np.ndarray:
-        return rk4_step(state, DT, c=DAMPING, tau=tau)
+        return rk4_step(state, DT, c=DAMPING, tau=tau, c_coulomb=0.0)
 
     f0 = f(EQUILIBRIUM_STATE, EQUILIBRIUM_TAU)
     A = np.zeros((2, 2))

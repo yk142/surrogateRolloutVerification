@@ -28,7 +28,7 @@ def test_zero_residual_matches_known_physics():
 
         with torch.no_grad():
             predicted = model.step(state, u).numpy()
-        expected = rk4_step(np.array([theta, theta_dot]), dt, c=0.0, tau=tau)
+        expected = rk4_step(np.array([theta, theta_dot]), dt, c=0.0, tau=tau, c_coulomb=0.0)
 
         assert np.allclose(predicted, expected, atol=1e-5)
 

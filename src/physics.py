@@ -1,35 +1,62 @@
-"""振り子(減衰・トルク入力あり)の真値シミュレータ。
+"""振り子(減衰・クーロン摩擦・トルク入力あり)の真値シミュレータ。
 
 状態は x = [theta, theta_dot]。運動方程式:
-    theta_ddot = -(g / L) * sin(theta) - c * theta_dot + tau / (m * L^2)
+    theta_ddot = -(g / L) * sin(theta) - c * theta_dot
+                 - c_coulomb * sign(theta_dot) + tau / (m * L^2)
 
-c=0, tau=0 (デフォルト) で無減衰・無入力の単振り子(M1)に一致する。
-tau はステップ内で一定(ゼロ次ホールド)として扱う。
+M15 (#31) でクーロン摩擦(乾摩擦)項を追加した。これはグレーボックスモデルが
+既知として埋め込んでいない「本当の未知項」であり、不連続なためNNにとっても
+学習が難しい。モジュール定数 C_COULOMB をデフォルト値にすることで、全ての
+呼び出し元が自動的に同じ真の系を使う(スクリプトごとの設定漏れを防ぐ)。
+
+c=0, c_coulomb=0, tau=0 を明示的に渡せば、無減衰・無摩擦・無入力の単振り子
+(M1の系)に一致する。tau はステップ内で一定(ゼロ次ホールド)として扱う。
 """
 import numpy as np
 
 G = 9.81
 L = 1.0
 M = 1.0
-C = 0.0  # デフォルトは無減衰(M1と後方互換)
+C = 0.0  # 粘性減衰のデフォルトは0(M1と後方互換。学習・評価では0.15を明示的に渡す)
+C_COULOMB = 0.3  # クーロン摩擦(M15で追加。真の系の「未知項」として常に有効)
 TAU = 0.0  # デフォルトは無入力(M1/M2と後方互換)
 
 
-def dynamics(state: np.ndarray, c: float = C, tau: float = TAU, m: float = M) -> np.ndarray:
+def friction_acceleration(theta_dot: np.ndarray, c: float, c_coulomb: float) -> np.ndarray:
+    """摩擦による加速度(粘性 + クーロン)。グレーボックスが学ぶべき未知項。"""
+    return -c * theta_dot - c_coulomb * np.sign(theta_dot)
+
+
+def dynamics(
+    state: np.ndarray,
+    c: float = C,
+    tau: float = TAU,
+    m: float = M,
+    c_coulomb: float = C_COULOMB,
+) -> np.ndarray:
     """状態の時間微分 dx/dt を返す。state: shape (..., 2)。tau はスカラーまたは (...,) 形状。"""
     theta, theta_dot = state[..., 0], state[..., 1]
-    theta_ddot = -(G / L) * np.sin(theta) - c * theta_dot + tau / (m * L**2)
+    theta_ddot = (
+        -(G / L) * np.sin(theta)
+        + friction_acceleration(theta_dot, c, c_coulomb)
+        + tau / (m * L**2)
+    )
     return np.stack([theta_dot, theta_ddot], axis=-1)
 
 
 def rk4_step(
-    state: np.ndarray, dt: float, c: float = C, tau: float = TAU, m: float = M
+    state: np.ndarray,
+    dt: float,
+    c: float = C,
+    tau: float = TAU,
+    m: float = M,
+    c_coulomb: float = C_COULOMB,
 ) -> np.ndarray:
     """RK4で1ステップ積分する。tau はこのステップ内で一定とみなす。"""
-    k1 = dynamics(state, c, tau, m)
-    k2 = dynamics(state + 0.5 * dt * k1, c, tau, m)
-    k3 = dynamics(state + 0.5 * dt * k2, c, tau, m)
-    k4 = dynamics(state + dt * k3, c, tau, m)
+    k1 = dynamics(state, c, tau, m, c_coulomb)
+    k2 = dynamics(state + 0.5 * dt * k1, c, tau, m, c_coulomb)
+    k3 = dynamics(state + 0.5 * dt * k2, c, tau, m, c_coulomb)
+    k4 = dynamics(state + dt * k3, c, tau, m, c_coulomb)
     return state + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
 
 
@@ -40,6 +67,7 @@ def simulate(
     c: float = C,
     tau: np.ndarray | float = TAU,
     m: float = M,
+    c_coulomb: float = C_COULOMB,
 ) -> np.ndarray:
     """初期状態から n_steps + 1 点の軌道を生成する。
 
@@ -51,7 +79,7 @@ def simulate(
     traj = [initial_state]
     state = initial_state
     for t in range(n_steps):
-        state = rk4_step(state, dt, c, tau_seq[t], m)
+        state = rk4_step(state, dt, c, tau_seq[t], m, c_coulomb)
         traj.append(state)
     return np.stack(traj, axis=0)
 
