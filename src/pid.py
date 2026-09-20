@@ -10,7 +10,7 @@ M6ではPIDの目標角度を一般化し、倒立近傍の異なる目標角度
 import numpy as np
 
 from src.model import AutoregressiveModel
-from src.physics import G, L, M, rk4_step
+from src.physics import G, L_NOMINAL, M_NOMINAL, rk4_step
 
 DT = 0.02
 TAU_MAX = 4.0
@@ -33,8 +33,11 @@ def gravity_feedforward(target: float) -> float:
     theta=pi(倒立)ではsin(pi)=0のためゼロになりM5の挙動と一致するが、
     倒立近傍の他の目標角度では重力が theta_ddot に -(g/L)sin(theta) の
     定常的な偏りを与えるため、PIDの積分項だけに頼らずこれを直接打ち消す。
+
+    設計者が知り得るのは公称値のみなので L_NOMINAL, M_NOMINAL を使う(M16 #33)。
+    真値とのズレは積分項が吸収する。
     """
-    return M * G * L * np.sin(target)
+    return M_NOMINAL * G * L_NOMINAL * np.sin(target)
 
 
 def angular_error_to_inverted(theta: np.ndarray) -> np.ndarray:

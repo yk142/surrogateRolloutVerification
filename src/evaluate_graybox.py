@@ -124,8 +124,14 @@ def plot_comparison(
 def plot_learned_residual(graybox: GrayBoxNSSModel) -> None:
     """グレーボックスが学習した残差加速度と、真の摩擦特性を重ねて比較する。
 
-    真の未知項は粘性摩擦 + クーロン摩擦 = -c*theta_dot - c_coulomb*sign(theta_dot) で、
-    theta_dot=0 で不連続。NNがこの不連続をどこまで再現できるかを見る。
+    残差NNが担うのは以下の2つ:
+    - 真の摩擦(粘性 + クーロン): -c*theta_dot - c_coulomb*sign(theta_dot)。
+      theta_dot=0 で不連続。
+    - パラメータ誤差の補正(M16 #33): 既知項を公称値 L_NOMINAL, M_NOMINAL で
+      計算しているため、真値との差 (g/L_nom - g/L_true)sin(theta) および
+      tau/(m_nom L_nom^2) - tau/(m L^2) を残差が吸収する必要がある。
+      前者は theta に、後者は tau に依存するため、sin(theta) や tau が 0 でない
+      条件では残差が摩擦特性から上下にシフトする。
     """
     theta_dot_grid = np.linspace(-6.0, 6.0, 601)
     truth = friction_acceleration(theta_dot_grid, DAMPING, C_COULOMB)
@@ -146,7 +152,7 @@ def plot_learned_residual(graybox: GrayBoxNSSModel) -> None:
 
     plt.xlabel("theta_dot [rad/s]")
     plt.ylabel("残差加速度 [rad/s²]")
-    plt.title("グレーボックスが学習した残差 vs 真の摩擦特性(粘性+クーロン)")
+    plt.title("学習された残差 = 真の摩擦(粘性+クーロン) + パラメータ誤差の補正")
     plt.legend(fontsize=8)
     plt.tight_layout()
     plt.savefig(f"{OUT_DIR}/graybox_residual.png", dpi=150)
