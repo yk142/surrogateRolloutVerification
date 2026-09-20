@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from src.physics import G, L, M
+from src.physics import G, L_NOMINAL, M_NOMINAL
 
 STATE_ENC_DIM = 3  # sin(theta), cos(theta), theta_dot
 CONTROL_DIM = 1  # u (M1では常に0)
@@ -129,7 +129,10 @@ class GrayBoxNSSModel(AutoregressiveModel):
     加速度を
         theta_ddot = -(g/L) sin(theta) + tau/(m L^2) + NN_residual(sin, cos, theta_dot, tau)
     と分解し、既知項(重力・トルク入力)と積分構造(RK4)はハードコードする。
-    NNが担うのは未知成分のみで、真の系ではこれは減衰項 -c*theta_dot に相当する。
+
+    既知項に使うL, mは**公称値**(L_NOMINAL, M_NOMINAL)であり、真の系の値とは
+    キャリブレーション誤差がある(M16 #33)。したがってNNが担う残差は
+    「真の摩擦(粘性+クーロン) + パラメータ誤差に起因する補正」になる。
 
     ブラックボックス版と違い theta を atan2 で毎ステップ畳み込まないため、出力の
     theta は連続(unwrap済み相当)になる。角度差を扱う下流コードは全てwrapに対して
@@ -149,7 +152,7 @@ class GrayBoxNSSModel(AutoregressiveModel):
     def dynamics(self, state: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
         """dx/dt = [theta_dot, theta_ddot]。 (..., 2) -> (..., 2)"""
         theta, theta_dot = state[..., 0], state[..., 1]
-        known_acc = -(G / L) * torch.sin(theta) + u[..., 0] / (M * L**2)
+        known_acc = -(G / L_NOMINAL) * torch.sin(theta) + u[..., 0] / (M_NOMINAL * L_NOMINAL**2)
         theta_ddot = known_acc + self.residual_acceleration(state, u)
         return torch.stack([theta_dot, theta_ddot], dim=-1)
 

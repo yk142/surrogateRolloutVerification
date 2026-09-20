@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from src.model import GrayBoxNSSModel
-from src.physics import rk4_step
+from src.physics import L_NOMINAL, M_NOMINAL, rk4_step
 
 
 def _zero_residual_model() -> GrayBoxNSSModel:
@@ -15,9 +15,11 @@ def _zero_residual_model() -> GrayBoxNSSModel:
 
 
 def test_zero_residual_matches_known_physics():
-    """残差が0なら、グレーボックスの1ステップは既知物理(無減衰RK4)と一致すること。
+    """残差が0なら、グレーボックスの1ステップは既知物理(無摩擦RK4)と一致すること。
 
     既知構造(重力項・トルク入力項・RK4積分)がハードコードされていることの検証。
+    グレーボックスが信じている公称パラメータ(L_NOMINAL, M_NOMINAL)で比較する
+    (真の系のL, Mとはキャリブレーション誤差がある: M16 #33)。
     """
     model = _zero_residual_model()
     dt = model.dt
@@ -28,7 +30,10 @@ def test_zero_residual_matches_known_physics():
 
         with torch.no_grad():
             predicted = model.step(state, u).numpy()
-        expected = rk4_step(np.array([theta, theta_dot]), dt, c=0.0, tau=tau, c_coulomb=0.0)
+        expected = rk4_step(
+            np.array([theta, theta_dot]), dt, c=0.0, tau=tau,
+            m=M_NOMINAL, c_coulomb=0.0, length=L_NOMINAL,
+        )
 
         assert np.allclose(predicted, expected, atol=1e-5)
 
